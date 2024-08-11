@@ -17,20 +17,23 @@ fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: us
         return;
     }
 
-    let texture = get_wall_texture();
+    let texture = match cell {
+        '+' => get_wall_texture1(),  // Textura para paredes de tipo '+'
+        '#' => get_wall_texture2(),  // Textura para paredes de tipo '#'
+        '*' => get_wall_texture3(),  // Textura para paredes de tipo '*'
+        _ => get_wall_texture1(),    // Textura por defecto
+    };
 
     for x in 0..block_size {
         for y in 0..block_size {
             let mut color = texture[y % texture.len()][x % texture[0].len()];
-            
-            // Aplica la sombra con un factor de intensidad de 0.7
             let color_with_shadow = apply_shadow(color, 0.7);  
-
             framebuffer.set_current_color(color_with_shadow);
             framebuffer.point(xo + x, yo + y);
         }
     }
 }
+
 
 
 fn apply_shadow(color: u32, intensity: f32) -> u32 {
@@ -41,11 +44,8 @@ fn apply_shadow(color: u32, intensity: f32) -> u32 {
     ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
 }
 
-
 fn render(framebuffer: &mut Framebuffer, player: &Player) {
     let maze = load_maze("./maze.txt");
-    
-    // Calcula el tamaño de los bloques en función del tamaño del framebuffer
     let block_size = std::cmp::min(framebuffer.width / maze[0].len(), framebuffer.height / maze.len());
 
     // Dibuja el laberinto
@@ -55,9 +55,17 @@ fn render(framebuffer: &mut Framebuffer, player: &Player) {
         }
     }
 
-    // Dibuja el jugador
-    framebuffer.set_current_color(0xFFDDD);
-    framebuffer.point(player.pos.x as usize, player.pos.y as usize);
+    // Dibuja el sprite del jugador
+    let sprite = get_player_sprite();
+    let sprite_size = sprite.len();
+
+    for x in 0..sprite_size {
+        for y in 0..sprite_size {
+            let color = sprite[y][x];
+            framebuffer.set_current_color(color);
+            framebuffer.point((player.pos.x as usize) + x - sprite_size / 2, (player.pos.y as usize) + y - sprite_size / 2);
+        }
+    }
 
     // Raycasting
     let num_rays = 5;
@@ -69,14 +77,45 @@ fn render(framebuffer: &mut Framebuffer, player: &Player) {
     }
 }
 
-fn get_wall_texture() -> Vec<Vec<u32>> {
+
+fn get_wall_texture1() -> Vec<Vec<u32>> {
     vec![
         vec![0xFF5733, 0xFF5733, 0xC70039, 0xC70039],
         vec![0xFF5733, 0xFF5733, 0xC70039, 0xC70039],
         vec![0x900C3F, 0x900C3F, 0x581845, 0x581845],
         vec![0x900C3F, 0x900C3F, 0x581845, 0x581845],
     ]
+
 }
+
+fn get_wall_texture2() -> Vec<Vec<u32>> {
+    vec![
+        vec![0x7A7A7A, 0x7A7A7A, 0xFF5733, 0xFF5733],  // Rojo vibrante
+        vec![0x7A7A7A, 0x7A7A7A, 0xFF5733, 0xFF5733],
+        vec![0x5A5A5A, 0x5A5A5A, 0x4A4A4A, 0x4A4A4A],
+        vec![0x5A5A5A, 0x5A5A5A, 0x4A4A4A, 0x4A4A4A],
+    ]
+}
+
+fn get_wall_texture3() -> Vec<Vec<u32>> {
+    vec![
+        vec![0x9A9A9A, 0x9A9A9A, 0x7A1A1A, 0x7A1A1A],  // Un rojo oscuro
+        vec![0x9A9A9A, 0x9A9A9A, 0x7A1A1A, 0x7A1A1A],
+        vec![0x7A7A7A, 0x7A7A7A, 0x6A6A6A, 0x6A6A6A],
+        vec![0x7A7A7A, 0x7A7A7A, 0x6A6A6A, 0x6A6A6A],
+    ]
+}
+
+fn get_player_sprite() -> Vec<Vec<u32>> {
+    vec![
+        vec![0xFFFFFF, 0x000000, 0xFFFFFF],
+        vec![0x000000, 0xFFFFFF, 0x000000],
+        vec![0xFFFFFF, 0x000000, 0xFFFFFF],
+    ]
+}
+
+
+
 
 fn main() {
     let window_width = 1200;  // Tamaño de la ventana ajustado
@@ -94,8 +133,7 @@ fn main() {
         WindowOptions::default(),
     ).unwrap();
 
-    framebuffer.set_background_color(0x1E1E1E); 
-    framebuffer.set_current_color(0xFF5733);
+    framebuffer.set_background_color(0x1A1A1A);
 
     let player = Player {
         pos: Vec2::new(100.0, 100.0),  // Ajusta la posición inicial si es necesario
