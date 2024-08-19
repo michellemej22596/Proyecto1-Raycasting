@@ -18,12 +18,25 @@ enum ViewMode {
 }
 
 const MINIMAP_SCALE: usize = 5;  // Escala del minimapa (reducido en tamaño)
-const MINIMAP_SIZE: usize = 100;  // Tamaño del minimapa (100x100 píxeles)
 const MINIMAP_MARGIN: usize = 10;  // Margen desde la esquina de la pantalla
+const MINIMAP_BORDER_COLOR: u32 = 0xFFFFFF; // Color del borde del minimapa
 
 fn draw_minimap(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &Player, block_size: usize) {
+    let minimap_width = maze[0].len() * MINIMAP_SCALE;
+    let minimap_height = maze.len() * MINIMAP_SCALE;
+
     let minimap_x = MINIMAP_MARGIN;
     let minimap_y = MINIMAP_MARGIN;
+
+    // Dibujar el borde del minimapa
+    for x in 0..minimap_width + 2 {
+        framebuffer.point(minimap_x + x, minimap_y);
+        framebuffer.point(minimap_x + x, minimap_y + minimap_height + 1);
+    }
+    for y in 0..minimap_height + 2 {
+        framebuffer.point(minimap_x, minimap_y + y);
+        framebuffer.point(minimap_x + minimap_width + 1, minimap_y + y);
+    }
 
     // Dibujar el laberinto en el minimapa
     for y in 0..maze.len() {
@@ -41,8 +54,8 @@ fn draw_minimap(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &P
             for i in 0..MINIMAP_SCALE {
                 for j in 0..MINIMAP_SCALE {
                     framebuffer.point(
-                        minimap_x + x * MINIMAP_SCALE + i,
-                        minimap_y + y * MINIMAP_SCALE + j,
+                        minimap_x + x * MINIMAP_SCALE + i + 1,  // +1 para el borde
+                        minimap_y + y * MINIMAP_SCALE + j + 1,
                     );
                 }
             }
@@ -50,8 +63,8 @@ fn draw_minimap(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &P
     }
 
     // Dibujar la posición del jugador en el minimapa
-    let player_minimap_x = minimap_x + (player.pos.x / block_size as f32 * MINIMAP_SCALE as f32) as usize;
-    let player_minimap_y = minimap_y + (player.pos.y / block_size as f32 * MINIMAP_SCALE as f32) as usize;
+    let player_minimap_x = minimap_x + (player.pos.x / block_size as f32 * MINIMAP_SCALE as f32) as usize + 1;
+    let player_minimap_y = minimap_y + (player.pos.y / block_size as f32 * MINIMAP_SCALE as f32) as usize + 1;
 
     framebuffer.set_current_color(0xFFFF00);  // Color amarillo para el jugador
 
@@ -61,6 +74,7 @@ fn draw_minimap(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &P
         }
     }
 }
+
 
 
 
@@ -183,9 +197,6 @@ fn render_3d(framebuffer: &mut Framebuffer, player: &Player) {
 
 
 
-
-
-
 fn get_wall_texture1() -> Vec<Vec<u32>> {
     vec![
         vec![0xFF5733, 0xFF5733, 0xC70039, 0xC70039],
@@ -263,9 +274,9 @@ fn main() {
                 ViewMode::View3D => ViewMode::View2D,
             };
         }
-
-        draw_minimap(&mut framebuffer, &maze, &player, block_size);
-
+    
+        framebuffer.clear();  // Limpiar el framebuffer al inicio del ciclo
+    
         // Movimiento del jugador con detección de colisiones
         if window.is_key_down(Key::W) {
             player.move_forward(move_speed, &maze, block_size);
@@ -285,21 +296,26 @@ fn main() {
         if window.is_key_down(Key::Right) {
             player.rotate_right(rotate_speed);
         }
-
-        framebuffer.clear();
-
+    
+        // Renderizar el mundo principal
         match view_mode {
-            ViewMode::View2D => render(&mut framebuffer, &player),  // Renderiza en 2D
-            ViewMode::View3D => render_3d(&mut framebuffer, &player),  // Renderiza en 3D
+            ViewMode::View2D => render(&mut framebuffer, &player), // Renderizar en 2D
+            ViewMode::View3D => {
+                render_3d(&mut framebuffer, &player);  // Renderizar en 3D
+                draw_minimap(&mut framebuffer, &maze, &player, block_size);  // Dibujar el minimapa solo en 3D
+            },
         }
-
+    
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
-
+    
         std::thread::sleep(frame_delay);
     }
-}
+    
+    
+    }
+
 
 
 
