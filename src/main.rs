@@ -3,7 +3,7 @@ mod maze;
 mod player;
 mod caster;
 
-use minifb::{ Window, WindowOptions, Key };
+use minifb::{Window, WindowOptions, Key, MouseMode};
 use nalgebra_glm::{Vec2};
 use std::f32::consts::PI;
 use crate::framebuffer::Framebuffer;
@@ -11,6 +11,7 @@ use crate::maze::load_maze;
 use crate::player::{Player};
 use crate::caster::{cast_ray};
 use std::time::{Duration, Instant};
+
 
 enum ViewMode {
     View2D,
@@ -322,20 +323,12 @@ fn draw_fps(framebuffer: &mut Framebuffer, fps: usize) {
     draw_fps_bar(framebuffer, fps);
 }
 
-
-
-
-
-
-
-
 fn main() {
     let window_width = 1200;
     let window_height = 600;
     let framebuffer_width = 1200;
     let framebuffer_height = 600;
-    let frame_delay = Duration::from_millis(66); // Aproximadamente 15 FPS (1000 ms / 15 fps = 66.67 ms por frame)
-
+    let frame_delay = Duration::from_millis(66); // Aproximadamente 15 FPS
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
 
@@ -357,7 +350,7 @@ fn main() {
     let move_speed = 5.0;
     let rotate_speed = 0.1;
 
-    let maze = load_maze("./maze.txt");  // Cargar el laberinto
+    let maze = load_maze("./maze.txt"); // Cargar el laberinto
     let block_size = std::cmp::min(framebuffer.width / maze[0].len(), framebuffer.height / maze.len());
 
     let mut view_mode = ViewMode::View2D;
@@ -366,11 +359,12 @@ fn main() {
     let mut fps_counter = 0;
     let mut fps_display = 0;
 
+    let mut last_mouse_x = None; // Para almacenar la posición anterior del mouse
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let current_time = Instant::now();
         let elapsed_time = current_time - last_time;
-    
+
         // Contador de FPS
         fps_counter += 1;
         if elapsed_time >= Duration::from_secs(1) {
@@ -378,10 +372,19 @@ fn main() {
             fps_counter = 0;
             last_time = current_time;
         }
-    
+
+        // Rotación con el mouse (solo horizontal)
+        if let Some((mouse_x, _)) = window.get_mouse_pos(MouseMode::Discard) {
+            if let Some(last_x) = last_mouse_x {
+                let delta_x = mouse_x - last_x;
+                player.a += delta_x * 0.005; // Ajusta el factor de sensibilidad
+            }
+            last_mouse_x = Some(mouse_x); // Actualiza la posición del mouse
+        }
+
         // Renderizado del juego como antes...
         framebuffer.clear();
-    
+
         // Movimiento del jugador con detección de colisiones
         if window.is_key_down(Key::W) {
             player.move_forward(move_speed, &maze, block_size);
@@ -407,8 +410,7 @@ fn main() {
                 ViewMode::View3D => ViewMode::View2D,
             };
         }
-        
-    
+
         // Renderizar el mundo principal
         match view_mode {
             ViewMode::View2D => render(&mut framebuffer, &player),
@@ -417,20 +419,18 @@ fn main() {
                 draw_minimap(&mut framebuffer, &maze, &player, block_size);
             },
         }
-    
-        // Desplegar los FPS en la esquina de la pantalla (esto requiere una función para dibujar texto o similar)
+
+        // Desplegar los FPS en la esquina de la pantalla
         draw_fps(&mut framebuffer, fps_display);
-    
+
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
-    
+
         std::thread::sleep(frame_delay);
     }
-    
-    
-    
-    }
+}
+
 
 
 
