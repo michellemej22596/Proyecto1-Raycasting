@@ -324,6 +324,24 @@ fn draw_fps(framebuffer: &mut Framebuffer, fps: usize) {
 }
 
 fn main() {
+
+    // // Iniciar el sistema de audio de Rodio
+    // let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+
+    // // Cargar el archivo de audio (asegúrate de que el archivo exista)
+    // let file = BufReader::new(File::open("haunted.mp3").unwrap());
+
+    // // Decodificar el archivo de audio
+    // let source = Decoder::new(file).unwrap();
+
+    // // Reproducir el audio (sin repetir)
+    // let sink = Sink::try_new(&stream_handle).unwrap();
+    // sink.append(source);
+
+    // // Mantener el programa corriendo mientras se reproduce el audio
+    // sink.play();
+    
+    // Configuraciones del juego
     let window_width = 1200;
     let window_height = 600;
     let framebuffer_width = 1200;
@@ -430,10 +448,3 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
-
-
-
-
-
-
-
