@@ -12,7 +12,6 @@ use crate::player::{Player};
 use crate::caster::{cast_ray};
 use std::time::{Duration, Instant};
 
-
 enum ViewMode {
     View2D,
     View3D,
@@ -76,10 +75,6 @@ fn draw_minimap(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &P
     }
 }
 
-
-
-
-
 fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: usize, cell: char) {
     if cell == ' ' {
         return;
@@ -101,8 +96,6 @@ fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: us
         }
     }
 }
-
-
 
 fn apply_shadow(color: u32, intensity: f32) -> u32 {
     let r = ((color >> 16) & 0xFF) as f32 * intensity;
@@ -196,8 +189,6 @@ fn render_3d(framebuffer: &mut Framebuffer, player: &Player) {
     }
 }
 
-
-
 fn get_wall_texture1() -> Vec<Vec<u32>> {
     vec![
         vec![0xFF5733, 0xFF5733, 0xC70039, 0xC70039],
@@ -205,7 +196,6 @@ fn get_wall_texture1() -> Vec<Vec<u32>> {
         vec![0x900C3F, 0x900C3F, 0x581845, 0x581845],
         vec![0x900C3F, 0x900C3F, 0x581845, 0x581845],
     ]
-
 }
 
 fn get_wall_texture2() -> Vec<Vec<u32>> {
@@ -311,7 +301,6 @@ fn draw_fps_bar(framebuffer: &mut Framebuffer, fps: usize) {
     }
 }
 
-
 fn draw_fps(framebuffer: &mut Framebuffer, fps: usize) {
     let x = framebuffer.width - 60;  // Posición en la esquina superior derecha
     let y = 10;
@@ -324,24 +313,6 @@ fn draw_fps(framebuffer: &mut Framebuffer, fps: usize) {
 }
 
 fn main() {
-
-    // // Iniciar el sistema de audio de Rodio
-    // let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-
-    // // Cargar el archivo de audio (asegúrate de que el archivo exista)
-    // let file = BufReader::new(File::open("haunted.mp3").unwrap());
-
-    // // Decodificar el archivo de audio
-    // let source = Decoder::new(file).unwrap();
-
-    // // Reproducir el audio (sin repetir)
-    // let sink = Sink::try_new(&stream_handle).unwrap();
-    // sink.append(source);
-
-    // // Mantener el programa corriendo mientras se reproduce el audio
-    // sink.play();
-    
-    // Configuraciones del juego
     let window_width = 1200;
     let window_height = 600;
     let framebuffer_width = 1200;
@@ -378,6 +349,15 @@ fn main() {
     let mut fps_display = 0;
 
     let mut last_mouse_x = None; // Para almacenar la posición anterior del mouse
+
+    // Animación del color del jugador
+    let player_colors = [0xFFFFFF, 0xFF0000, 0x00FF00, 0x0000FF];
+    let mut color_index = 0;
+
+    // Animación de "flotación"
+    let mut float_direction = 1;
+    let mut float_offset: isize = 0;  // Cambiado a isize para manejar negativos
+    let float_range: isize = 10;  // Cuánto "flota" el sprite del jugador
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let current_time = Instant::now();
@@ -431,7 +411,38 @@ fn main() {
 
         // Renderizar el mundo principal
         match view_mode {
-            ViewMode::View2D => render(&mut framebuffer, &player),
+            ViewMode::View2D => {
+                render(&mut framebuffer, &player);
+
+                // Animar el sprite del jugador solo en modo 2D
+                color_index = (color_index + 1) % player_colors.len();
+                let player_color = player_colors[color_index];
+
+                // Actualizar la animación de flotación
+                float_offset += float_direction;
+                if float_offset >= float_range || float_offset <= -float_range {
+                    float_direction *= -1;
+                }
+
+                // Dibujar el sprite del jugador con animación
+                let sprite = get_player_sprite();
+                let sprite_size = sprite.len();
+
+                for x in 0..sprite_size {
+                    for y in 0..sprite_size {
+                        let color = sprite[y][x];
+                        if color == 0xFFFFFF {
+                            framebuffer.set_current_color(player_color);
+                        } else {
+                            framebuffer.set_current_color(color);
+                        }
+                        framebuffer.point(
+                            (player.pos.x as usize) + x - sprite_size / 2,
+                            ((player.pos.y as isize) + y as isize + float_offset - sprite_size as isize / 2) as usize,
+                        );
+                    }
+                }
+            }
             ViewMode::View3D => {
                 render_3d(&mut framebuffer, &player);
                 draw_minimap(&mut framebuffer, &maze, &player, block_size);
@@ -448,3 +459,5 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
+
+
