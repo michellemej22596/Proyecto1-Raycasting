@@ -6,11 +6,11 @@ mod caster;
 use minifb::{ Window, WindowOptions, Key };
 use nalgebra_glm::{Vec2};
 use std::f32::consts::PI;
-use std::time::Duration;
 use crate::framebuffer::Framebuffer;
 use crate::maze::load_maze;
 use crate::player::{Player};
 use crate::caster::{cast_ray};
+use std::time::{Duration, Instant};
 
 enum ViewMode {
     View2D,
@@ -233,6 +233,100 @@ fn get_player_sprite() -> Vec<Vec<u32>> {
     ]
 }
 
+fn draw_char(framebuffer: &mut Framebuffer, x: usize, y: usize, char_matrix: &[[u8; 5]; 7], color: u32) {
+    framebuffer.set_current_color(color);
+    for (i, row) in char_matrix.iter().enumerate() {
+        for (j, &pixel) in row.iter().enumerate() {
+            if pixel == 1 {
+                framebuffer.point(x + j, y + i);
+            }
+        }
+    }
+}
+
+fn draw_text(framebuffer: &mut Framebuffer, x: usize, y: usize, text: &str, color: u32) {
+    let char_map = [
+        ('F', [
+            [1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0],
+            [1, 1, 1, 1, 0],
+            [1, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0],
+        ]),
+        ('P', [
+            [1, 1, 1, 1, 0],
+            [1, 0, 0, 0, 1],
+            [1, 1, 1, 1, 0],
+            [1, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0],
+        ]),
+        ('S', [
+            [1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0],
+            [1, 1, 1, 1, 1],
+            [0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1],
+            [0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1],
+        ]),
+        ('0', [
+            [1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1],
+        ]),        
+       
+    ];
+
+    let mut offset = 0;
+    for c in text.chars() {
+        if let Some(char_matrix) = char_map.iter().find(|&&(ch, _)| ch == c).map(|&(_, matrix)| matrix) {
+            draw_char(framebuffer, x + offset, y, &char_matrix, color);
+            offset += 6; // Espaciado entre caracteres
+        }
+    }
+}
+
+fn draw_fps_bar(framebuffer: &mut Framebuffer, fps: usize) {
+    let max_fps = 30;  // Ahora la barra se llenará con 30 FPS
+    let bar_length = (fps * 60 / max_fps).min(60);  // Ajustar la escala
+
+    let x = framebuffer.width - 120;  // Posición en la esquina superior derecha
+    let y = 30;  // Un poco más abajo que el texto de "FPS"
+
+    framebuffer.set_current_color(0xFFFFFF);  // Color blanco para la barra
+
+    for i in 0..bar_length {
+        for j in 0..5 {  // Ancho de la barra
+            framebuffer.point(x + i, y + j);
+        }
+    }
+}
+
+
+fn draw_fps(framebuffer: &mut Framebuffer, fps: usize) {
+    let x = framebuffer.width - 60;  // Posición en la esquina superior derecha
+    let y = 10;
+
+    // Dibujar el texto "FPS"
+    draw_text(framebuffer, x, y, "FPS", 0xFFFFFF);
+
+    // Dibujar la barra de FPS
+    draw_fps_bar(framebuffer, fps);
+}
+
+
+
+
+
+
 
 
 fn main() {
@@ -240,7 +334,8 @@ fn main() {
     let window_height = 600;
     let framebuffer_width = 1200;
     let framebuffer_height = 600;
-    let frame_delay = Duration::from_millis(16);
+    let frame_delay = Duration::from_millis(66); // Aproximadamente 15 FPS (1000 ms / 15 fps = 66.67 ms por frame)
+
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
 
@@ -267,15 +362,25 @@ fn main() {
 
     let mut view_mode = ViewMode::View2D;
 
+    let mut last_time = Instant::now();
+    let mut fps_counter = 0;
+    let mut fps_display = 0;
+
+
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) {
-            view_mode = match view_mode {
-                ViewMode::View2D => ViewMode::View3D,
-                ViewMode::View3D => ViewMode::View2D,
-            };
+        let current_time = Instant::now();
+        let elapsed_time = current_time - last_time;
+    
+        // Contador de FPS
+        fps_counter += 1;
+        if elapsed_time >= Duration::from_secs(1) {
+            fps_display = fps_counter;
+            fps_counter = 0;
+            last_time = current_time;
         }
     
-        framebuffer.clear();  // Limpiar el framebuffer al inicio del ciclo
+        // Renderizado del juego como antes...
+        framebuffer.clear();
     
         // Movimiento del jugador con detección de colisiones
         if window.is_key_down(Key::W) {
@@ -296,15 +401,25 @@ fn main() {
         if window.is_key_down(Key::Right) {
             player.rotate_right(rotate_speed);
         }
+        if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) {
+            view_mode = match view_mode {
+                ViewMode::View2D => ViewMode::View3D,
+                ViewMode::View3D => ViewMode::View2D,
+            };
+        }
+        
     
         // Renderizar el mundo principal
         match view_mode {
-            ViewMode::View2D => render(&mut framebuffer, &player), // Renderizar en 2D
+            ViewMode::View2D => render(&mut framebuffer, &player),
             ViewMode::View3D => {
-                render_3d(&mut framebuffer, &player);  // Renderizar en 3D
-                draw_minimap(&mut framebuffer, &maze, &player, block_size);  // Dibujar el minimapa solo en 3D
+                render_3d(&mut framebuffer, &player);
+                draw_minimap(&mut framebuffer, &maze, &player, block_size);
             },
         }
+    
+        // Desplegar los FPS en la esquina de la pantalla (esto requiere una función para dibujar texto o similar)
+        draw_fps(&mut framebuffer, fps_display);
     
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
@@ -312,6 +427,7 @@ fn main() {
     
         std::thread::sleep(frame_delay);
     }
+    
     
     
     }
